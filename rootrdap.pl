@@ -347,6 +347,15 @@ This script scrapes data from the IANA whois service and generates RDAP response
 The RDAP responses are written to disk in a directory which can then be exposed through a web
 server.
 
+An example of an RDAP service which provides access to this data may be found at
+L<https://root.rdap.org>, for example:
+
+=over
+
+=item * L<https://root.rdap.org/domain/xyz>
+
+=back
+
 =head1 USAGE
 
 	rootrdap.pl DIRECTORY
