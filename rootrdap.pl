@@ -33,6 +33,8 @@ if (!-e $dir || !-d $dir) {
 
 my $ua = LWP::UserAgent->new('agent' => sprintf('%s/%s', basename(__FILE__, '.pl'), $VERSION));
 
+my $json = JSON->new->pretty;
+
 my $list = join('/', $dir, basename(TLD_LIST));
 
 if (!-e $list || stat($list)->mtime <= time()-86400) {
@@ -108,6 +110,7 @@ foreach my $tld (@tlds) {
 		'ldhName' => $tld,
 		'handle' => $tld,
 		'port43' => WHOIS_HOST,
+		'rdapConformance' => [ 'rdap_level_0' ],
 	};
 
 	#
@@ -314,7 +317,6 @@ foreach my $tld (@tlds) {
 	# write RDAP object to disk
 	#
 	my $jfile = sprintf('%s/%s.json', $dir, $tld);
-	my $json = JSON->new->pretty;
 
 	if (!write_file($jfile, $json->encode($data))) {
 		printf(STDERR "Unable to write to '%s': %s\n", $jfile, $!);
