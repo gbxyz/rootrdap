@@ -178,6 +178,8 @@ foreach my $tld (@tlds) {
 				#
 				my ($tag, $alg, $digestType, $digest) = split(/ /, $value, 4);
 
+				$data->{'secureDNS'}->{'delegationSigned'} = JSON::true;
+
 				push(@{$data->{'secureDNS'}->{'dsData'}}, {
 					'keyTag'	=> $tag,
 					'algorithm'	=> $alg,
