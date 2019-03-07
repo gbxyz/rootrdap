@@ -58,7 +58,10 @@ if (!-e $list || stat($list)->mtime <= time()-86400) {
 
 my @tlds = map { chomp ; lc } grep { /^[A-Z0-9-]+$/ } read_file($list);
 
-my $status = { 'active' => 1 };
+my $status = {
+	'active' => 1,
+	'removed' => 1,
+};
 
 print STDERR "Generating files\n";
 
