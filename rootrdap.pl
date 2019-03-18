@@ -304,10 +304,12 @@ foreach my $tld (@tlds) {
 	#
 	$data->{'links'} = [
 		{
+			'title'	=> 'Entry for this TLD in the Root Zone Database',
 			'rel'	=> 'related',
 			'href'	=> sprintf('https://www.iana.org/domains/root/db/%s.html', $tld),
 		},
 		{
+			'title'	=> 'About RDAP',
 			'rel'	=> 'related',
 			'href'	=> 'https://about.rdap.org',
 		}
