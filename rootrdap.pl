@@ -3,6 +3,7 @@
 # free software; you can redistribute it and/or modify it under the same
 # terms as Perl itself.
 use Cwd;
+use DateTime;
 use File::Basename qw(dirname basename);
 use File::Slurp;
 use File::stat;
