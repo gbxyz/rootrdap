@@ -214,7 +214,10 @@ foreach my $tld (@tlds) {
 				});
 
 			} elsif ('remarks' eq $key) {
-				push(@{$data->{'remarks'}}, { 'description' => [ $value ] });
+				push(@{$data->{'remarks'}}, {
+					'title' => 'Remark',
+					'description' => [ $value ]
+				});
 
 				if ($value =~ /Registration information: (https?:\/\/.+)/i) {
 					$url = $1;
