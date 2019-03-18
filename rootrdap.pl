@@ -277,6 +277,11 @@ foreach my $tld (@tlds) {
 		}
 	}
 
+	push(@{$data->{'events'}}, {
+		'eventAction' => 'last update of RDAP database',
+		'eventDate' => DateTime->now->iso8601,
+	});
+
 	$data->{'notices'} = [
 		{
 			'title'	=> 'About This Service',
