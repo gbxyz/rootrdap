@@ -297,7 +297,7 @@ foreach my $tld (@tlds) {
 	#
 	# insert comments as a notice
 	#
-	push(@{$data->{'notices'}}, { 'description' => \@comments }) if (scalar(@comments) > 0);
+	push(@{$data->{'notices'}}, {'title' => 'Comments', 'description' => \@comments }) if (scalar(@comments) > 0);
 
 	#
 	# add some links
