@@ -252,14 +252,20 @@ foreach my $tld (@tlds) {
 				# create one if not found
 				#
 				if (!defined($adr)) {
-					$adr = [ 'adr', {}, 'text', [] ];
+					$adr = [ 'adr', { 'label' => '' }, 'text', [ '', '', '', '', '', '', '' ] ];
 					push(@{$entities->{$contact}->{'vcardArray'}->[1]}, $adr);
 				}
 
 				#
 				# append the line to the address
 				#
-				push(@{$adr->[3]}, $value);
+				if (length($adr->[1]->{'label'}) < 1) {
+					$adr->[1]->{'label'} = $value;
+
+				} else {
+					$adr->[1]->{'label'} .= "\n".$value;
+
+				}
 
 			} elsif ('phone' eq $key) {
 				push(@{$entities->{$contact}->{'vcardArray'}->[1]}, ['tel', {}, 'text', $value ]);
