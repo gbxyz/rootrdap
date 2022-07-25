@@ -66,6 +66,11 @@ my $status = {
 
 print STDERR "Generating files\n";
 
+my $all = {
+  'rdapConformance' => [ 'rdap_level_0' ],
+  'domainSearchResults' => [],
+};
+
 foreach my $tld (@tlds) {
 	my $file = sprintf('%s/%s.txt', $dir, $tld);
 	my @data;
@@ -344,6 +349,18 @@ foreach my $tld (@tlds) {
 		printf(STDERR "Unable to write to '%s': %s\n", $jfile, $!);
 		exit(1);
 	}
+
+  push(@{$all->{'domainSearchResults'}}, $data);
+}
+
+#
+# write RDAP object to disk
+#
+my $jfile = sprintf('%s/_all.json', $dir);
+
+if (!write_file($jfile, $json->encode($all))) {
+	printf(STDERR "Unable to write to '%s': %s\n", $jfile, $!);
+	exit(1);
 }
 
 print STDERR "done\n";
