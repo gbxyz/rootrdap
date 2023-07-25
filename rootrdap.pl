@@ -350,7 +350,11 @@ foreach my $tld (@tlds) {
 		exit(1);
 	}
 
-  push(@{$all->{'domainSearchResults'}}, $data);
+    $all->{'notices'} = $data->{'notices'} unless (defined($all->{'notices'}));
+    delete($data->{'notices'});
+    delete($data->{'rdapConformance'});
+
+    push(@{$all->{'domainSearchResults'}}, $data);
 }
 
 #
