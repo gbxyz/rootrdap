@@ -1,0 +1,50 @@
+name: Update TLD RDAP data
+
+on:
+  push:
+    paths:
+      - 'rootrdap.pl'
+      - '.github/workflows/build.yml'
+    branches: [ "main" ]
+  workflow_dispatch:
+  schedule:
+    - cron: '32 4 * * *'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: setup SSH deploy key
+        run: |
+          mkdir -p $HOME/.ssh
+          echo "${{ secrets.SSH_DEPLOY_KEY }}" > $HOME/.ssh/id_ed25519
+          chmod -R 0700 $HOME/.ssh
+
+      - uses: actions/checkout@v3
+
+      - name: install cpanm
+        run: |
+          sudo apt-get -qqq update
+          sudo apt-get -qqq install cpanminus
+
+      - name: install Perl modules
+        run: cpanm --sudo --notest DateTime JSON LWP::Protocol::https Text::CSV_XS
+
+      - name: create output directory
+        run: mkdir ./data
+
+      - name: generate data
+        run: ./rootrdap.pl ./data
+
+      - name: update public repository
+        run: |
+          git clone git@github.com:gbxyz/rootrdap-web.git
+          pushd rootrdap-web/domain
+          git config user.name "GitHub Actions"
+          git config user.email github-actions@rdap.org
+          rm -f *json
+          cp -fv ../../data/*json .
+          git add .
+          git commit -m "automatic update"
+          git push
