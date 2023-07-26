@@ -28,8 +28,8 @@ pod2usage() if ($help);
 my $dir = $ARGV[0] || getcwd();
 
 if (!-e $dir || !-d $dir) {
-	printf(STDERR "Error: %s doesn't exist, please create it first\n");
-	exit(1);
+    printf(STDERR "Error: %s doesn't exist, please create it first\n");
+    exit(1);
 }
 
 my $ua = LWP::UserAgent->new('agent' => sprintf('%s/%s', basename(__FILE__, '.pl'), $VERSION));
@@ -39,29 +39,30 @@ my $json = JSON->new->pretty;
 my $list = join('/', $dir, basename(TLD_LIST));
 
 if (!-e $list || stat($list)->mtime <= time()-86400) {
-	print STDERR "Updating TLD list from IANA\n";
-	my $response = $ua->mirror(TLD_LIST, $list);
+    print STDERR "Updating TLD list from IANA\n";
+    my $response = $ua->mirror(TLD_LIST, $list);
 
-	if ($response->is_error) {
-		if (-e $list) {
-			warn($response->status_line);
+    if ($response->is_error) {
+        if (-e $list) {
+            warn($response->status_line);
 
-		} else {
-			die($response->status_line);
+        } else {
+            die($response->status_line);
 
-		}
+        }
 
-	} else {
-		utime(undef, undef, $list);
+    } else {
+        utime(undef, undef, $list);
 
-	}
+    }
 }
 
 my @tlds = map { chomp ; lc } grep { /^[A-Z0-9-]+$/ } read_file($list);
 
 my $status = {
-	'active' => 1,
-	'removed' => 1,
+    'active' => 1,
+    'removed' => 1,
+    'former' => 1,
 };
 
 print STDERR "Generating files\n";
@@ -72,283 +73,283 @@ my $all = {
 };
 
 foreach my $tld (@tlds) {
-	my $file = sprintf('%s/%s.txt', $dir, $tld);
-	my @data;
+    my $file = sprintf('%s/%s.txt', $dir, $tld);
+    my @data;
 
-	if (-e $file && stat($file)->mtime >= time()-86400) {
-		@data = read_file($file);
+    if (-e $file && stat($file)->mtime >= time()-86400) {
+        @data = read_file($file);
 
-	} else {
-		printf(STDERR "Updating data for .%s\n", uc($tld));
+    } else {
+        printf(STDERR "Updating data for .%s\n", uc($tld));
 
-		my $socket = IO::Socket::INET->new(
-			'PeerAddr'	=> WHOIS_HOST,
-			'PeerPort'	=> WHOIS_PORT,
-			'Type'		=> SOCK_STREAM,
-			'Proto'		=> 'tcp',
-			'Timeout'	=> 5,
-		);
-		if (!$socket) {
-			warn($@);
+        my $socket = IO::Socket::INET->new(
+            'PeerAddr'    => WHOIS_HOST,
+            'PeerPort'    => WHOIS_PORT,
+            'Type'        => SOCK_STREAM,
+            'Proto'        => 'tcp',
+            'Timeout'    => 5,
+        );
+        if (!$socket) {
+            warn($@);
 
-		} else {
-			$socket->print(sprintf("%s\r\n", $tld));
+        } else {
+            $socket->print(sprintf("%s\r\n", $tld));
 
-			@data = $socket->getlines;
+            @data = $socket->getlines;
 
-			$socket->close;
+            $socket->close;
 
-			if (!write_file($file, @data)) {
-				printf(STDERR "Unable to write data to '%s': %s\n", $file, $!);
-				exit(1);
-			}
-		}
-	}
+            if (!write_file($file, @data)) {
+                printf(STDERR "Unable to write data to '%s': %s\n", $file, $!);
+                exit(1);
+            }
+        }
+    }
 
-	#
-	# the first set of contact information we see in the response is the
-	# sponsoring organisation (the "registrant" of the TLD)
-	#
-	my $contact = 'registrant';
+    #
+    # the first set of contact information we see in the response is the
+    # sponsoring organisation (the "registrant" of the TLD)
+    #
+    my $contact = 'registrant';
 
-	#
-	# initialise JSON object
-	#
-	my $data = {
-		'objectClassName' => 'domain',
-		'ldhName' => $tld,
-		'handle' => $tld,
-		'port43' => WHOIS_HOST,
-		'rdapConformance' => [ 'rdap_level_0' ],
-	};
+    #
+    # initialise JSON object
+    #
+    my $data = {
+        'objectClassName' => 'domain',
+        'ldhName' => $tld,
+        'handle' => $tld,
+        'port43' => WHOIS_HOST,
+        'rdapConformance' => [ 'rdap_level_0' ],
+    };
 
-	#
-	# we put entity information into this hashref, we need to
-	# pre-populate the registrant object
-	#
-	my $entities = {
-		$contact => {
-			'objectClassName'	=> 'entity',
-			'handle'		=> sprintf('%s-%s', $tld, $contact),
-			'vcardArray'		=> empty_vcard_array(),
-			'roles'			=> [ $contact ]
-		},
-	};
+    #
+    # we put entity information into this hashref, we need to
+    # pre-populate the registrant object
+    #
+    my $entities = {
+        $contact => {
+            'objectClassName'    => 'entity',
+            'handle'        => sprintf('%s-%s', $tld, $contact),
+            'vcardArray'        => empty_vcard_array(),
+            'roles'            => [ $contact ]
+        },
+    };
 
-	my @comments;
+    my @comments;
 
-	my $url;
+    my $url;
 
-	foreach my $line (@data) {
-		chomp($line);
+    foreach my $line (@data) {
+        chomp($line);
 
-		if ($line =~ /^% *(.+)/) {
-			#
-			# push comment lines into an array for later inclusion
-			#
-			push(@comments, $1);
+        if ($line =~ /^% *(.+)/) {
+            #
+            # push comment lines into an array for later inclusion
+            #
+            push(@comments, $1);
 
-		} elsif (length($line) < 1) {
-			#
-			# ignore empty line
-			#
-			next;
+        } elsif (length($line) < 1) {
+            #
+            # ignore empty line
+            #
+            next;
 
-		} else {
-			my ($key, $value) = split(/\: */, $line, 2);
+        } else {
+            my ($key, $value) = split(/\: */, $line, 2);
 
-			if ('domain' eq $key || 'domain-ace' eq $key) {
-				# discard
+            if ('domain' eq $key || 'domain-ace' eq $key) {
+                # discard
 
-			} elsif ('source' eq $key) {
-				push(@{$data->{'remarks'}}, {
-					'title' => 'Source',
-					'description' => [ $value ],
-				});
+            } elsif ('source' eq $key) {
+                push(@{$data->{'remarks'}}, {
+                    'title' => 'Source',
+                    'description' => [ $value ],
+                });
 
-			} elsif ('nserver' eq $key) {
-				#
-				# value consists of hostname followed by one or more IPs
-				#
-				my ($ns, @ips)	= split(/ /, $value);
+            } elsif ('nserver' eq $key) {
+                #
+                # value consists of hostname followed by one or more IPs
+                #
+                my ($ns, @ips)    = split(/ /, $value);
 
-				push(@{$data->{'nameservers'}}, {
-					'objectClassName' => 'nameserver',
-					'ldhName' => $ns,
-					'ipAddresses' => {
-						'v4' => [ grep { /\./ } @ips ],	# use simplistic regexp to 
-						'v6' => [ grep { /:/  } @ips ],	# split IPs into families
-					},
-				});
+                push(@{$data->{'nameservers'}}, {
+                    'objectClassName' => 'nameserver',
+                    'ldhName' => $ns,
+                    'ipAddresses' => {
+                        'v4' => [ grep { /\./ } @ips ],    # use simplistic regexp to 
+                        'v6' => [ grep { /:/  } @ips ],    # split IPs into families
+                    },
+                });
 
-			} elsif ('ds-rdata' eq $key) {
-				#
-				# value is a DS record in presentation format
-				#
-				my ($tag, $alg, $digestType, $digest) = split(/ /, $value, 4);
+            } elsif ('ds-rdata' eq $key) {
+                #
+                # value is a DS record in presentation format
+                #
+                my ($tag, $alg, $digestType, $digest) = split(/ /, $value, 4);
 
-				$data->{'secureDNS'}->{'delegationSigned'} = JSON::true;
+                $data->{'secureDNS'}->{'delegationSigned'} = JSON::true;
 
-				push(@{$data->{'secureDNS'}->{'dsData'}}, {
-					'keyTag'	=> $tag,
-					'algorithm'	=> $alg,
-					'digest'	=> $digest,
-					'digestType'	=> $digestType,
-				});
+                push(@{$data->{'secureDNS'}->{'dsData'}}, {
+                    'keyTag'    => $tag,
+                    'algorithm'    => $alg,
+                    'digest'    => $digest,
+                    'digestType'    => $digestType,
+                });
 
-			} elsif ('status' eq $key) {
-				if (!defined($status->{lc($value)})) {
-					printf(STDERR "Unknown status '%s'\n", $value);
-					exit(1);
+            } elsif ('status' eq $key) {
+                if (!defined($status->{lc($value)})) {
+                    printf(STDERR "Unknown status '%s'\n", $value);
+                    exit(1);
 
-				} else {
-					push(@{$data->{'status'}}, lc($value));
+                } else {
+                    push(@{$data->{'status'}}, lc($value));
 
-				}
+                }
 
-			} elsif ('created' eq $key) {
-				push(@{$data->{'events'}}, {
-					'eventAction' => 'registration',
-					'eventDate' => $value,
-				});
+            } elsif ('created' eq $key) {
+                push(@{$data->{'events'}}, {
+                    'eventAction' => 'registration',
+                    'eventDate' => $value,
+                });
 
-			} elsif ('changed' eq $key) {
-				push(@{$data->{'events'}}, {
-					'eventAction' => 'last changed',
-					'eventDate' => $value,
-				});
+            } elsif ('changed' eq $key) {
+                push(@{$data->{'events'}}, {
+                    'eventAction' => 'last changed',
+                    'eventDate' => $value,
+                });
 
-			} elsif ('remarks' eq $key) {
-				push(@{$data->{'remarks'}}, {
-					'title' => 'Remark',
-					'description' => [ $value ]
-				});
+            } elsif ('remarks' eq $key) {
+                push(@{$data->{'remarks'}}, {
+                    'title' => 'Remark',
+                    'description' => [ $value ]
+                });
 
-				if ($value =~ /Registration information: (https?:\/\/.+)/i) {
-					$url = $1;
-				}
+                if ($value =~ /Registration information: (https?:\/\/.+)/i) {
+                    $url = $1;
+                }
 
-			} elsif ('contact' eq $key) {
-				#
-				# signifies the start of a new contact, so change the value of
-				# $contact and initialise a new object in $entities
-				#
-				$contact = $value;
-				$entities->{$contact} = {
-					'objectClassName' => 'entity',
-					'handle' => sprintf('%s-%s', $tld, $contact),
-					'vcardArray' => empty_vcard_array(),
-					'roles' => [ $value ]
-				};
+            } elsif ('contact' eq $key) {
+                #
+                # signifies the start of a new contact, so change the value of
+                # $contact and initialise a new object in $entities
+                #
+                $contact = $value;
+                $entities->{$contact} = {
+                    'objectClassName' => 'entity',
+                    'handle' => sprintf('%s-%s', $tld, $contact),
+                    'vcardArray' => empty_vcard_array(),
+                    'roles' => [ $value ]
+                };
 
-			} elsif ('name' eq $key) {
-				push(@{$entities->{$contact}->{'vcardArray'}->[1]}, [ 'fn', {}, 'text', $value ]);
+            } elsif ('name' eq $key) {
+                push(@{$entities->{$contact}->{'vcardArray'}->[1]}, [ 'fn', {}, 'text', $value ]);
 
-			} elsif ('organisation' eq $key) {
-				push(@{$entities->{$contact}->{'vcardArray'}->[1]}, [ 'org', {}, 'text', $value ]);
+            } elsif ('organisation' eq $key) {
+                push(@{$entities->{$contact}->{'vcardArray'}->[1]}, [ 'org', {}, 'text', $value ]);
 
-			} elsif ('address' eq $key) {
-				#
-				# look for an existing address node in the vcard
-				#
-				my $adr = (grep { $_->[0] eq 'adr' } @{$entities->{$contact}->{'vcardArray'}->[1]})[0];
+            } elsif ('address' eq $key) {
+                #
+                # look for an existing address node in the vcard
+                #
+                my $adr = (grep { $_->[0] eq 'adr' } @{$entities->{$contact}->{'vcardArray'}->[1]})[0];
 
-				#
-				# create one if not found
-				#
-				if (!defined($adr)) {
-					$adr = [ 'adr', { 'label' => '' }, 'text', [ '', '', '', '', '', '', '' ] ];
-					push(@{$entities->{$contact}->{'vcardArray'}->[1]}, $adr);
-				}
+                #
+                # create one if not found
+                #
+                if (!defined($adr)) {
+                    $adr = [ 'adr', { 'label' => '' }, 'text', [ '', '', '', '', '', '', '' ] ];
+                    push(@{$entities->{$contact}->{'vcardArray'}->[1]}, $adr);
+                }
 
-				#
-				# append the line to the address
-				#
-				if (length($adr->[1]->{'label'}) < 1) {
-					$adr->[1]->{'label'} = $value;
+                #
+                # append the line to the address
+                #
+                if (length($adr->[1]->{'label'}) < 1) {
+                    $adr->[1]->{'label'} = $value;
 
-				} else {
-					$adr->[1]->{'label'} .= "\n".$value;
+                } else {
+                    $adr->[1]->{'label'} .= "\n".$value;
 
-				}
+                }
 
-			} elsif ('phone' eq $key) {
-				push(@{$entities->{$contact}->{'vcardArray'}->[1]}, ['tel', {}, 'text', $value ]);
+            } elsif ('phone' eq $key) {
+                push(@{$entities->{$contact}->{'vcardArray'}->[1]}, ['tel', {}, 'text', $value ]);
 
-			} elsif ('fax-no' eq $key) {
-				push(@{$entities->{$contact}->{'vcardArray'}->[1]}, ['tel', { 'type' => 'fax' }, 'text', $value ]);
+            } elsif ('fax-no' eq $key) {
+                push(@{$entities->{$contact}->{'vcardArray'}->[1]}, ['tel', { 'type' => 'fax' }, 'text', $value ]);
 
-			} elsif ('e-mail' eq $key) {
-				push(@{$entities->{$contact}->{'vcardArray'}->[1]}, ['email', {}, 'text', $value ]);
+            } elsif ('e-mail' eq $key) {
+                push(@{$entities->{$contact}->{'vcardArray'}->[1]}, ['email', {}, 'text', $value ]);
 
-			} elsif ('whois' eq $key) {
-				push(@{$data->{'remarks'}}, { 'title' => 'Whois Service', 'description' => [ sprintf('The port-43 whois service for this TLD is %s.', uc($value)) ] });
+            } elsif ('whois' eq $key) {
+                push(@{$data->{'remarks'}}, { 'title' => 'Whois Service', 'description' => [ sprintf('The port-43 whois service for this TLD is %s.', uc($value)) ] });
 
-			} else {
-				printf(STDERR "Unknown key '%s'\n", $key);
-				exit(1);
+            } else {
+                printf(STDERR "Unknown key '%s'\n", $key);
+                exit(1);
 
-			}
-		}
-	}
+            }
+        }
+    }
 
-	push(@{$data->{'events'}}, {
-		'eventAction' => 'last update of RDAP database',
-		'eventDate' => DateTime->now->iso8601,
-	});
+    push(@{$data->{'events'}}, {
+        'eventAction' => 'last update of RDAP database',
+        'eventDate' => DateTime->now->iso8601,
+    });
 
-	$data->{'notices'} = [
-		{
-			'title'	=> 'About This Service',
-			'description' => [
-				'Please note that this RDAP service is NOT provided by the IANA.',
-				'',
-				'For more information, please see https://about.rdap.org',
-			],
-		}
-	];
+    $data->{'notices'} = [
+        {
+            'title'    => 'About This Service',
+            'description' => [
+                'Please note that this RDAP service is NOT provided by the IANA.',
+                '',
+                'For more information, please see https://about.rdap.org',
+            ],
+        }
+    ];
 
-	#
-	# insert comments as a notice
-	#
-	push(@{$data->{'notices'}}, {'title' => 'Comments', 'description' => \@comments }) if (scalar(@comments) > 0);
+    #
+    # insert comments as a notice
+    #
+    push(@{$data->{'notices'}}, {'title' => 'Comments', 'description' => \@comments }) if (scalar(@comments) > 0);
 
-	#
-	# add some links
-	#
-	$data->{'links'} = [
-		{
-			'title'	=> 'Entry for this TLD in the Root Zone Database',
-			'rel'	=> 'related',
-			'href'	=> sprintf('https://www.iana.org/domains/root/db/%s.html', $tld),
-		},
-		{
-			'title'	=> 'About RDAP',
-			'rel'	=> 'related',
-			'href'	=> 'https://about.rdap.org',
-		}
-	];
+    #
+    # add some links
+    #
+    $data->{'links'} = [
+        {
+            'title'    => 'Entry for this TLD in the Root Zone Database',
+            'rel'    => 'related',
+            'href'    => sprintf('https://www.iana.org/domains/root/db/%s.html', $tld),
+        },
+        {
+            'title'    => 'About RDAP',
+            'rel'    => 'related',
+            'href'    => 'https://about.rdap.org',
+        }
+    ];
 
-	push(@{$data->{'links'}}, {
-		'title'	=> 'URL for registration services',
-		'rel'	=> 'related',
-		'href'	=> $url,
-	}) if ($url);
+    push(@{$data->{'links'}}, {
+        'title'    => 'URL for registration services',
+        'rel'    => 'related',
+        'href'    => $url,
+    }) if ($url);
 
-	#
-	# insert entities
-	#
-	$data->{'entities'} = [ values(%{$entities}) ];
+    #
+    # insert entities
+    #
+    $data->{'entities'} = [ values(%{$entities}) ];
 
-	#
-	# write RDAP object to disk
-	#
-	my $jfile = sprintf('%s/%s.json', $dir, $tld);
+    #
+    # write RDAP object to disk
+    #
+    my $jfile = sprintf('%s/%s.json', $dir, $tld);
 
-	if (!write_file($jfile, $json->encode($data))) {
-		printf(STDERR "Unable to write to '%s': %s\n", $jfile, $!);
-		exit(1);
-	}
+    if (!write_file($jfile, $json->encode($data))) {
+        printf(STDERR "Unable to write to '%s': %s\n", $jfile, $!);
+        exit(1);
+    }
 
     $all->{'notices'} = $data->{'notices'} unless (defined($all->{'notices'}));
     delete($data->{'notices'});
@@ -363,8 +364,8 @@ foreach my $tld (@tlds) {
 my $jfile = sprintf('%s/_all.json', $dir);
 
 if (!write_file($jfile, $json->encode($all))) {
-	printf(STDERR "Unable to write to '%s': %s\n", $jfile, $!);
-	exit(1);
+    printf(STDERR "Unable to write to '%s': %s\n", $jfile, $!);
+    exit(1);
 }
 
 print STDERR "done\n";
@@ -403,7 +404,7 @@ L<https://root.rdap.org>, for example:
 
 =head1 USAGE
 
-	rootrdap.pl DIRECTORY
+    rootrdap.pl DIRECTORY
 
 C<DIRECTORY> is the location on disk where the files should be written. C<rootrdap.pl> will write
 its working files to this directory as well as the finished .json files.
