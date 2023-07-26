@@ -34,7 +34,7 @@ if (!-e $dir || !-d $dir) {
 
 my $ua = LWP::UserAgent->new('agent' => sprintf('%s/%s', basename(__FILE__, '.pl'), $VERSION));
 
-my $json = JSON->new->pretty;
+my $json = JSON->new->pretty->canonical;
 
 my $list = join('/', $dir, basename(TLD_LIST));
 
@@ -339,7 +339,7 @@ foreach my $tld (@tlds) {
     #
     # insert entities
     #
-    $data->{'entities'} = [ values(%{$entities}) ];
+    $data->{'entities'} = [map { $entities->{$_} } sort(keys(%{$entities}))];
 
     #
     # write RDAP object to disk
