@@ -1,21 +1,21 @@
 #!/usr/bin/perl
-# Copyright (c) 2018 CentralNic Ltd. All rights reserved. This program is
-# free software; you can redistribute it and/or modify it under the same
-# terms as Perl itself.
+# Copyright (c) 2018-2023 CentralNic Ltd and contributors. All rights reserved.
+# This program is free software; you can redistribute it and/or modify it under
+# the same terms as Perl itself.
 use Cwd;
+use Data::Mirror qw(mirror_fh);
 use DateTime;
-use File::Basename qw(dirname basename);
 use File::Slurp;
 use File::stat;
 use Getopt::Long;
 use IO::Socket;
-use JSON;
-use LWP::UserAgent;
-use Pod::Usage;
+use JSON::XS;
 use POSIX qw(floor);
-use constant TLD_LIST => 'https://data.iana.org/TLD/tlds-alpha-by-domain.txt';
+use Pod::Usage;
 use constant WHOIS_HOST => 'whois.iana.org';
 use constant WHOIS_PORT => 43;
+use open qw(:utf8);
+use utf8;
 use strict;
 
 my $VERSION = '0.1';
@@ -32,37 +32,14 @@ if (!-e $dir || !-d $dir) {
     exit(1);
 }
 
-my $ua = LWP::UserAgent->new('agent' => sprintf('%s/%s', basename(__FILE__, '.pl'), $VERSION));
+my $json = JSON::XS->new->utf8->pretty->canonical;
 
-my $json = JSON->new->pretty->canonical;
-
-my $list = join('/', $dir, basename(TLD_LIST));
-
-if (!-e $list || stat($list)->mtime <= time()-86400) {
-    print STDERR "Updating TLD list from IANA\n";
-    my $response = $ua->mirror(TLD_LIST, $list);
-
-    if ($response->is_error) {
-        if (-e $list) {
-            warn($response->status_line);
-
-        } else {
-            die($response->status_line);
-
-        }
-
-    } else {
-        utime(undef, undef, $list);
-
-    }
-}
-
-my @tlds = map { chomp ; lc } grep { /^[A-Z0-9-]+$/ } read_file($list);
+my @tlds = map { chomp ; lc } grep { /^[A-Z0-9-]+$/ } mirror_fh('https://data.iana.org/TLD/tlds-alpha-by-domain.txt')->getlines;
 
 my $status = {
-    'active' => 1,
-    'removed' => 1,
-    'former' => 1,
+    'active'    => 1,
+    'removed'   => 1,
+    'former'    => 1,
 };
 
 print STDERR "Generating files\n";
@@ -83,11 +60,11 @@ foreach my $tld (@tlds) {
         printf(STDERR "Updating data for .%s\n", uc($tld));
 
         my $socket = IO::Socket::INET->new(
-            'PeerAddr'    => WHOIS_HOST,
-            'PeerPort'    => WHOIS_PORT,
-            'Type'        => SOCK_STREAM,
-            'Proto'        => 'tcp',
-            'Timeout'    => 5,
+            'PeerAddr'  => WHOIS_HOST,
+            'PeerPort'  => WHOIS_PORT,
+            'Type'      => SOCK_STREAM,
+            'Proto'     => 'tcp',
+            'Timeout'   => 5,
         );
         if (!$socket) {
             warn($@);
@@ -116,11 +93,11 @@ foreach my $tld (@tlds) {
     # initialise JSON object
     #
     my $data = {
-        'objectClassName' => 'domain',
-        'ldhName' => $tld,
-        'handle' => $tld,
-        'port43' => WHOIS_HOST,
-        'rdapConformance' => [ 'rdap_level_0' ],
+        'objectClassName'   => 'domain',
+        'ldhName'           => $tld,
+        'handle'            => $tld,
+        'port43'            => WHOIS_HOST,
+        'rdapConformance'   => [ 'rdap_level_0' ],
     };
 
     #
@@ -129,10 +106,10 @@ foreach my $tld (@tlds) {
     #
     my $entities = {
         $contact => {
-            'objectClassName'    => 'entity',
-            'handle'        => sprintf('%s-%s', $tld, $contact),
+            'objectClassName'   => 'entity',
+            'handle'            => sprintf('%s-%s', $tld, $contact),
             'vcardArray'        => empty_vcard_array(),
-            'roles'            => [ $contact ]
+            'roles'             => [ $contact ]
         },
     };
 
@@ -177,8 +154,8 @@ foreach my $tld (@tlds) {
                     'objectClassName' => 'nameserver',
                     'ldhName' => $ns,
                     'ipAddresses' => {
-                        'v4' => [ grep { /\./ } @ips ],    # use simplistic regexp to 
-                        'v6' => [ grep { /:/  } @ips ],    # split IPs into families
+                        'v4' => [ grep { /\./ } @ips ], # use simplistic regexp to 
+                        'v6' => [ grep { /:/  } @ips ], # split IPs into families
                     },
                 });
 
@@ -191,9 +168,9 @@ foreach my $tld (@tlds) {
                 $data->{'secureDNS'}->{'delegationSigned'} = JSON::true;
 
                 push(@{$data->{'secureDNS'}->{'dsData'}}, {
-                    'keyTag'    => $tag,
-                    'algorithm'    => $alg,
-                    'digest'    => $digest,
+                    'keyTag'        => $tag,
+                    'algorithm'     => $alg,
+                    'digest'        => $digest,
                     'digestType'    => $digestType,
                 });
 
@@ -413,12 +390,12 @@ If C<DIRECTORY> is not provided, the current directory is used.
 
 =head1 COPYRIGHT
 
-Copyright 2018 CentralNic Ltd. All rights reserved.
+Copyright (c) 2018-2023 CentralNic Ltd and contributors. All rights reserved.
 
 =head1 LICENSE
 
-Copyright (c) 2018 CentralNic Ltd. All rights reserved. This program is
-free software; you can redistribute it and/or modify it under the same
-terms as Perl itself.
+Copyright (c) 2018-2023 CentralNic Ltd and contributors. All rights reserved.
+This program is free software; you can redistribute it and/or modify it under
+the same terms as Perl itself.
 
 =cut

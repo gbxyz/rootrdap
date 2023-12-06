@@ -19,7 +19,7 @@ An example of an RDAP service which provides access to this data may be found at
 
 # USAGE
 
-        rootrdap.pl DIRECTORY
+    rootrdap.pl DIRECTORY
 
 `DIRECTORY` is the location on disk where the files should be written. `rootrdap.pl` will write
 its working files to this directory as well as the finished .json files.
@@ -28,10 +28,10 @@ If `DIRECTORY` is not provided, the current directory is used.
 
 # COPYRIGHT
 
-Copyright 2018 CentralNic Ltd. All rights reserved.
+Copyright (c) 2018-2023 CentralNic Ltd and contributors. All rights reserved.
 
 # LICENSE
 
-Copyright (c) 2018 CentralNic Ltd. All rights reserved. This program is
-free software; you can redistribute it and/or modify it under the same
-terms as Perl itself.
+Copyright (c) 2018-2023 CentralNic Ltd and contributors. All rights reserved.
+This program is free software; you can redistribute it and/or modify it under
+the same terms as Perl itself.
