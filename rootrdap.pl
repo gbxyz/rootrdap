@@ -10,6 +10,7 @@ use File::stat;
 use Getopt::Long;
 use IO::Socket;
 use JSON::XS;
+use Object::Anon;
 use POSIX qw(floor);
 use Pod::Usage;
 use constant WHOIS_HOST => 'whois.iana.org';
@@ -43,7 +44,7 @@ my $status = {
 };
 
 my $rdap_servers;
-foreach my $service (@{mirror_json('https://data.iana.org/rdap/dns.json')->{'services'}}) {
+foreach my $service (@{anon(mirror_json('https://data.iana.org/rdap/dns.json'))->services}) {
     my @tlds = @{$service->[0]};
     my @urls = @{$service->[1]};
     my $url = (grep { $_ =~ /^https:/ } @urls, @urls)[0];
@@ -53,8 +54,8 @@ foreach my $service (@{mirror_json('https://data.iana.org/rdap/dns.json')->{'ser
 }
 
 my $gtlds;
-foreach my $gtld (@{mirror_json('https://www.icann.org/resources/registries/gtlds/v2/gtlds.json')->{'gTLDs'}}) {
-    $gtlds->{$gtld->{'gTLD'}} = $gtld;
+foreach my $gtld (@{anon(mirror_json('https://www.icann.org/resources/registries/gtlds/v2/gtlds.json'))->gTLDs}) {
+    $gtlds->{$gtld->gTLD} = $gtld;
 }
 
 print STDERR "Generating files\n";
@@ -368,8 +369,8 @@ foreach my $tld (@tlds) {
 
         push(@{$data->{'remarks'}}, {
             'title' => 'gTLD Application ID',
-            'description' => [ $gtlds->{$tld}->{'applicationId'} ],
-        }) if ($gtlds->{$tld}->{'applicationId'});
+            'description' => [ $gtlds->{$tld}->applicationId ],
+        }) if ($gtlds->{$tld}->applicationId);
 
         push(@{$data->{'remarks'}}, {
             'title' => 'Specification 13 (Code of Conduct) Exemption',
@@ -384,9 +385,9 @@ foreach my $tld (@tlds) {
                     'href'  => 'https://newgtlds.icann.org/en/applicants/agb/base-agreement-contracting/specification-13-applications',
                 }
             ],
-        }) if ($gtlds->{$tld}->{'specification13'});
+        }) if ($gtlds->{$tld}->specification13);
 
-        $data->{'unicodeName'} = $gtlds->{$tld}->{'uLabel'} if ($gtlds->{$tld}->{'uLabel'});
+        $data->{'unicodeName'} = $gtlds->{$tld}->uLabel if ($gtlds->{$tld}->uLabel);
     }
 
     #
@@ -409,8 +410,6 @@ foreach my $tld (@tlds) {
     delete($data->{'rdapConformance'});
 
     push(@{$all->{'domainSearchResults'}}, $data);
-
-    last;
 }
 
 #
