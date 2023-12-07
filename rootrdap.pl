@@ -3,7 +3,7 @@
 # This program is free software; you can redistribute it and/or modify it under
 # the same terms as Perl itself.
 use Cwd;
-use Data::Mirror qw(mirror_fh);
+use Data::Mirror qw(mirror_fh mirror_json);
 use DateTime;
 use File::Slurp;
 use File::stat;
@@ -41,6 +41,21 @@ my $status = {
     'removed'   => 1,
     'former'    => 1,
 };
+
+my $rdap_servers;
+foreach my $service (@{mirror_json('https://data.iana.org/rdap/dns.json')->{'services'}}) {
+    my @tlds = @{$service->[0]};
+    my @urls = @{$service->[1]};
+    my $url = (grep { $_ =~ /^https:/ } @urls, @urls)[0];
+    foreach my $tld (@tlds) {
+        $rdap_servers->{$tld} = $url;
+    }
+}
+
+my $gtlds;
+foreach my $gtld (@{mirror_json('https://www.icann.org/resources/registries/gtlds/v2/gtlds.json')->{'gTLDs'}}) {
+    $gtlds->{$gtld->{'gTLD'}} = $gtld;
+}
 
 print STDERR "Generating files\n";
 
@@ -154,7 +169,7 @@ foreach my $tld (@tlds) {
                     'objectClassName' => 'nameserver',
                     'ldhName' => $ns,
                     'ipAddresses' => {
-                        'v4' => [ grep { /\./ } @ips ], # use simplistic regexp to 
+                        'v4' => [ grep { /\./ } @ips ], # use simplistic regexp to
                         'v6' => [ grep { /:/  } @ips ], # split IPs into families
                     },
                 });
@@ -197,14 +212,22 @@ foreach my $tld (@tlds) {
                 });
 
             } elsif ('remarks' eq $key) {
-                push(@{$data->{'remarks'}}, {
+                my $remark = {
                     'title' => 'Remark',
                     'description' => [ $value ]
-                });
+                };
 
                 if ($value =~ /Registration information: (https?:\/\/.+)/i) {
                     $url = $1;
+
+                    $remark->{'links'} = [{
+                        'title' => 'URL for registration services',
+                        'rel'   => 'related',
+                        'href'  => $url,
+                    }];
                 }
+
+                push(@{$data->{'remarks'}}, $remark);
 
             } elsif ('contact' eq $key) {
                 #
@@ -260,7 +283,10 @@ foreach my $tld (@tlds) {
                 push(@{$entities->{$contact}->{'vcardArray'}->[1]}, ['email', {}, 'text', $value ]);
 
             } elsif ('whois' eq $key) {
-                push(@{$data->{'remarks'}}, { 'title' => 'Whois Service', 'description' => [ sprintf('The port-43 whois service for this TLD is %s.', uc($value)) ] });
+                push(@{$data->{'remarks'}}, {
+                    'title' => 'Whois Service',
+                    'description' => [ sprintf('The port-43 whois service for this TLD is %s.', uc($value || ($gtlds->{$tld} ? sprintf('whois.nic.%s', $tld) : ''))) ]
+                });
 
             } else {
                 printf(STDERR "Unknown key '%s'\n", $key);
@@ -277,7 +303,7 @@ foreach my $tld (@tlds) {
 
     $data->{'notices'} = [
         {
-            'title'    => 'About This Service',
+            'title' => 'About This Service',
             'description' => [
                 'Please note that this RDAP service is NOT provided by the IANA.',
                 '',
@@ -296,22 +322,72 @@ foreach my $tld (@tlds) {
     #
     $data->{'links'} = [
         {
-            'title'    => 'Entry for this TLD in the Root Zone Database',
-            'rel'    => 'related',
-            'href'    => sprintf('https://www.iana.org/domains/root/db/%s.html', $tld),
+            'title' => 'Entry for this TLD in the Root Zone Database',
+            'rel'   => 'related',
+            'href'  => sprintf('https://www.iana.org/domains/root/db/%s.html', $tld),
         },
         {
-            'title'    => 'About RDAP',
-            'rel'    => 'related',
-            'href'    => 'https://about.rdap.org',
+            'title' => 'About RDAP',
+            'rel'   => 'related',
+            'href'  => 'https://about.rdap.org',
         }
     ];
 
     push(@{$data->{'links'}}, {
-        'title'    => 'URL for registration services',
-        'rel'    => 'related',
-        'href'    => $url,
+        'title' => 'URL for registration services',
+        'rel'   => 'related',
+        'href'  => $url,
     }) if ($url);
+
+    if ($rdap_servers->{$tld}) {
+        push(@{$data->{'remarks'}}, {
+            'title' => 'RDAP Service',
+            'description' => [ sprintf('The RDAP Base URL for this TLD is %s.', $rdap_servers->{$tld}) ],
+            'links' => [
+                {
+                    'rel'   => 'related',
+                    'title' => 'RDAP Base URL',
+                    'href'  => $rdap_servers->{$tld},
+                }
+            ],
+        });
+
+        push(@{$data->{'links'}}, {
+            'title' => 'RDAP Base URL',
+            'rel'   => 'related',
+            'href'  => $rdap_servers->{$tld},
+        }) if ($url);
+    }
+
+    if ($gtlds->{$tld}) {
+        push(@{$data->{'links'}}, {
+            'title' => 'gTLD Registry Agreement',
+            'rel'   => 'related',
+            'href'  => sprintf('https://www.icann.org/en/registry-agreements/details/%s', $tld),
+        });
+
+        push(@{$data->{'remarks'}}, {
+            'title' => 'gTLD Application ID',
+            'description' => [ $gtlds->{$tld}->{'applicationId'} ],
+        }) if ($gtlds->{$tld}->{'applicationId'});
+
+        push(@{$data->{'remarks'}}, {
+            'title' => 'Specification 13 (Code of Conduct) Exemption',
+            'description' => [
+                'This TLD has an exemption from Specification 13 of the Registry Agreement.',
+                'This usually means that it is a Single Registrant or "brand" TLD.',
+            ],
+            'links' => [
+                {
+                    'rel'   => 'related',
+                    'title' => 'More information about Specification 13 exemptions',
+                    'href'  => 'https://newgtlds.icann.org/en/applicants/agb/base-agreement-contracting/specification-13-applications',
+                }
+            ],
+        }) if ($gtlds->{$tld}->{'specification13'});
+
+        $data->{'unicodeName'} = $gtlds->{$tld}->{'uLabel'} if ($gtlds->{$tld}->{'uLabel'});
+    }
 
     #
     # insert entities
@@ -333,6 +409,8 @@ foreach my $tld (@tlds) {
     delete($data->{'rdapConformance'});
 
     push(@{$all->{'domainSearchResults'}}, $data);
+
+    last;
 }
 
 #
